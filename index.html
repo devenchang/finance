@@ -292,7 +292,21 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
 .toast.success{border-color:var(--green);color:var(--green);}
 .toast.error{border-color:var(--red);color:var(--red);}
 .toast.info{border-color:var(--blue);color:var(--blue);}
-/* PRESET CARDS */
+/* PASSWORD SCREEN */
+.pw-overlay{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;padding:30px;}
+.pw-box{width:100%;max-width:340px;text-align:center;}
+.pw-logo{font-size:64px;margin-bottom:16px;}
+.pw-title{font-size:22px;font-weight:700;color:var(--gold-light);margin-bottom:6px;}
+.pw-sub{font-size:13px;color:var(--text3);margin-bottom:30px;}
+.pw-input{width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font);font-size:22px;font-weight:700;text-align:center;padding:14px;outline:none;letter-spacing:6px;margin-bottom:12px;transition:border-color .2s;}
+.pw-input:focus{border-color:var(--gold);}
+.pw-input.error{border-color:var(--red);animation:shake .3s;}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.pw-btn{width:100%;padding:14px;background:var(--gold);border:none;border-radius:var(--radius-sm);color:#1A1200;font-family:var(--font);font-size:16px;font-weight:700;cursor:pointer;transition:background .2s;}
+.pw-btn:hover{background:var(--gold-light);}
+.pw-hint{font-size:11px;color:var(--text3);margin-top:16px;}
+
+
 .preset-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 10px;cursor:pointer;transition:all .18s;display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center;position:relative;user-select:none;}
 .preset-card:active{transform:scale(.95);}
 .preset-card.income-card:hover{border-color:var(--green);background:rgba(46,204,138,.06);}
@@ -326,6 +340,19 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
 </style>
 </head>
 <body>
+
+<!-- PASSWORD SCREEN -->
+<div class="pw-overlay" id="pwOverlay">
+  <div class="pw-box">
+    <div class="pw-logo">💰</div>
+    <div class="pw-title">财务管家</div>
+    <div class="pw-sub">Finance Manager · 请输入密码</div>
+    <input type="password" class="pw-input" id="pwInput" placeholder="••••••" maxlength="10" inputmode="numeric"
+      onkeydown="if(event.key==='Enter') checkPassword()">
+    <button class="pw-btn" onclick="checkPassword()">进入</button>
+    <div class="pw-hint">家庭专用 · 请勿分享密码</div>
+  </div>
+</div>
 
 <div class="header">
   <div class="header-top">
@@ -2674,6 +2701,31 @@ function checkBackupReminder(){
   if(days>7){
     setTimeout(()=>showToast(`💾 已 ${Math.floor(days)} 天没备份了，记得导出！`,'info'),2000);
   }
+}
+
+// ===== PASSWORD PROTECTION =====
+const PW_HASH = '1452362022'; // hash of 141378
+function simpleHash(s){ let h=0; for(let i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))>>>0;} return String(h); }
+function checkPassword(){
+  const val=document.getElementById('pwInput').value;
+  if(simpleHash(val)===PW_HASH){
+    sessionStorage.setItem('fm_auth','1');
+    const overlay=document.getElementById('pwOverlay');
+    overlay.style.opacity='0';
+    overlay.style.transition='opacity .4s';
+    setTimeout(()=>overlay.style.display='none',400);
+  } else {
+    const input=document.getElementById('pwInput');
+    input.classList.add('error');
+    input.value='';
+    setTimeout(()=>input.classList.remove('error'),500);
+  }
+}
+// Check session on load
+if(sessionStorage.getItem('fm_auth')==='1'){
+  document.getElementById('pwOverlay').style.display='none';
+} else {
+  setTimeout(()=>document.getElementById('pwInput').focus(),300);
 }
 
 renderAll();
