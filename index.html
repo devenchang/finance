@@ -1009,36 +1009,37 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
 <!-- SYNC MODAL -->
 <div class="sync-overlay" id="syncModal">
   <div class="sync-modal">
-    <div class="modal-header" style="margin-bottom:20px;">
-      <div class="modal-title">💾 数据备份</div>
+    <div class="modal-header" style="margin-bottom:16px;">
+      <div class="modal-title">☁️ 同步 & 备份</div>
       <button class="modal-close" onclick="closeSyncModal()">✕</button>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
-      <button class="sync-action-btn" onclick="exportJSON()" style="padding:20px 12px;border-color:var(--green);color:var(--green);">
-        <span style="font-size:32px;">💾</span>
-        <span style="font-size:14px;font-weight:600;">导出备份</span>
-        <span style="font-size:11px;color:var(--text3);margin-top:2px;">保存 .json 文件</span>
+    <!-- Google Sheets Sync -->
+    <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:14px;margin-bottom:14px;">
+      <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:10px;">🔄 Google Sheets 实时同步</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">填入 Web App URL，电脑手机数据自动同步</div>
+      <input type="text" id="sheetsUrl" class="form-control" placeholder="https://script.google.com/macros/s/..." style="font-size:11px;margin-bottom:8px;" value="">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <button onclick="syncToSheets()" style="padding:10px;background:var(--green);border:none;color:white;border-radius:var(--radius-sm);font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;">⬆ 上传到云端</button>
+        <button onclick="syncFromSheets()" style="padding:10px;background:var(--blue);border:none;color:white;border-radius:var(--radius-sm);font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;">⬇ 从云端读取</button>
+      </div>
+      <div style="font-size:10px;color:var(--text3);text-align:center;" id="sheetsStatus">未连接</div>
+    </div>
+
+    <!-- JSON backup -->
+    <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;">💾 本地备份</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+      <button class="sync-action-btn" onclick="exportJSON()" style="padding:16px 10px;border-color:var(--green);color:var(--green);">
+        <span style="font-size:26px;">💾</span>
+        <span style="font-size:12px;font-weight:600;">导出 JSON</span>
       </button>
-      <button class="sync-action-btn" onclick="document.getElementById('importFile').click()" style="padding:20px 12px;border-color:var(--blue);color:var(--blue);">
-        <span style="font-size:32px;">📂</span>
-        <span style="font-size:14px;font-weight:600;">导入恢复</span>
-        <span style="font-size:11px;color:var(--text3);margin-top:2px;">读取 .json 文件</span>
+      <button class="sync-action-btn" onclick="document.getElementById('importFile').click()" style="padding:16px 10px;border-color:var(--blue);color:var(--blue);">
+        <span style="font-size:26px;">📂</span>
+        <span style="font-size:12px;font-weight:600;">导入 JSON</span>
       </button>
     </div>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
-
-    <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:14px;">
-      <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px;">💡 使用建议</div>
-      <div style="font-size:12px;color:var(--text3);line-height:1.8;">
-        📅 每周导出一次备份文件<br>
-        ☁️ 存到 Google Drive / Dropbox<br>
-        📱 换设备时导入即可恢复全部数据<br>
-        ⚠️ 导入会覆盖当前数据，请先备份
-      </div>
-    </div>
-
-    <div style="margin-top:12px;text-align:center;font-size:11px;color:var(--text3);" id="lastExportInfo"></div>
+    <div style="text-align:center;font-size:11px;color:var(--text3);" id="lastExportInfo"></div>
 
   </div>
 </div>
@@ -2832,14 +2833,86 @@ function saveNetWorth(){
   });
 });
 
-// ===== BACKUP (JSON only) =====
+// ===== BACKUP & GOOGLE SHEETS SYNC =====
+const SHEETS_URL_KEY='fm_sheets_url';
+
 function openSyncModal(){
-  const last = localStorage.getItem('lastExport');
-  const info = document.getElementById('lastExportInfo');
-  info.textContent = last ? '上次导出: ' + last : '还没有导出过备份';
+  const saved=localStorage.getItem(SHEETS_URL_KEY)||'';
+  document.getElementById('sheetsUrl').value=saved;
+  updateSheetsStatus(saved?'已保存 URL，可同步':'请填入 Web App URL');
+  const last=localStorage.getItem('lastExport');
+  document.getElementById('lastExportInfo').textContent=last?'上次本地备份: '+last:'';
   document.getElementById('syncModal').classList.add('open');
 }
 function closeSyncModal(){ document.getElementById('syncModal').classList.remove('open'); }
+
+function updateSheetsStatus(msg,color='var(--text3)'){
+  const el=document.getElementById('sheetsStatus');
+  el.textContent=msg; el.style.color=color;
+}
+
+function getSheetsUrl(){
+  const input=document.getElementById('sheetsUrl').value.trim();
+  if(input) localStorage.setItem(SHEETS_URL_KEY,input);
+  return input||localStorage.getItem(SHEETS_URL_KEY)||'';
+}
+
+async function syncToSheets(){
+  const url=getSheetsUrl();
+  if(!url){showToast('请先填入 Web App URL','error');return;}
+  updateSheetsStatus('上传中...','var(--amber)');
+  try{
+    const resp=await fetch(url,{
+      method:'POST',
+      body:JSON.stringify(data),
+      headers:{'Content-Type':'text/plain'}
+    });
+    const result=await resp.json();
+    if(result.success){
+      const ts=new Date().toLocaleString('zh-MY');
+      localStorage.setItem('lastSheetSync',ts);
+      updateSheetsStatus('✅ 上传成功 · '+ts,'var(--green)');
+      showToast('✅ 已同步到 Google Sheets','success');
+    } else {
+      updateSheetsStatus('❌ 上传失败: '+(result.error||'unknown'),'var(--red)');
+      showToast('上传失败','error');
+    }
+  }catch(e){
+    updateSheetsStatus('❌ 网络错误，请检查 URL','var(--red)');
+    showToast('连接失败，检查 URL 是否正确','error');
+  }
+}
+
+async function syncFromSheets(){
+  const url=getSheetsUrl();
+  if(!url){showToast('请先填入 Web App URL','error');return;}
+  updateSheetsStatus('读取中...','var(--amber)');
+  try{
+    const resp=await fetch(url+'?t='+Date.now());
+    const text=await resp.text();
+    const cloudData=JSON.parse(text);
+    if(!cloudData.transactions&&!cloudData.nextId){
+      updateSheetsStatus('❌ 云端数据格式不正确','var(--red)');
+      showToast('云端数据格式不正确','error'); return;
+    }
+    if(!confirm('⚠️ 从云端读取会覆盖本机数据，确定吗？')) {
+      updateSheetsStatus('已取消','var(--text3)'); return;
+    }
+    data=cloudData;
+    if(!data.savings) data.savings=[];
+    if(!data.investments) data.investments=[];
+    if(!data.retirement) data.retirement=DEFAULT.retirement;
+    save(); renderAll();
+    const ts=new Date().toLocaleString('zh-MY');
+    localStorage.setItem('lastSheetSync',ts);
+    updateSheetsStatus('✅ 读取成功 · '+ts,'var(--green)');
+    showToast('✅ 已从 Google Sheets 读取','success');
+    closeSyncModal();
+  }catch(e){
+    updateSheetsStatus('❌ 读取失败，检查 URL','var(--red)');
+    showToast('读取失败，检查 URL 是否正确','error');
+  }
+}
 
 function exportJSON(){
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
